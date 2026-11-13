@@ -4,6 +4,7 @@ const { buildInsights } = require("./insights");
 
 const app = express();
 app.use(cors());
+app.use(express.static(require('path').join(__dirname, 'public')));
 app.get("/v1/instruments/:symbol/insights", async (req, res) => { 
   const data = await buildInsights(req.params.symbol); 
   res.json(data); 
