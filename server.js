@@ -4,13 +4,40 @@ const { buildInsights } = require("./insights");
 
 const app = express();
 app.use(cors());
-app.use(express.static(require('path').join(__dirname, 'public')));
+app.use(express.json());
+
 app.get("/v1/instruments/:symbol/insights", async (req, res) => { 
   const data = await buildInsights(req.params.symbol); 
   res.json(data); 
 });
-app.get("/", (req, res) => {
-  const html = `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><script src="https://cdn.tailwindcss.com"></script></head><body class="bg-[#0D0D0D] text-[#E8E8E8] p-4 font-sans"><div class="max-w-md mx-auto mt-8"><div class="flex gap-2 mb-6"><input id="ticker" type="text" value="NVDA" class="bg-[#141414] border border-[#2A2A2A] rounded p-2 text-white font-mono uppercase w-full focus:outline-none focus:border-[#00D4AA]"><button onclick="loadData()" class="bg-[#00D4AA] text-black font-bold px-4 rounded">GO</button></div><h1 id="sym" class="text-3xl font-mono border-b border-[#2A2A2A] pb-2 mb-6">Loading...</h1><div class="grid grid-cols-2 gap-4 mb-4"><div class="bg-[#141414] p-4 rounded-lg"><div class="text-xs text-[#8B919C] uppercase">Momentum (RSI)</div><div id="rsi" class="text-2xl font-mono text-[#00D4AA]">-</div></div><div class="bg-[#141414] p-4 rounded-lg"><div class="text-xs text-[#8B919C] uppercase">Volatility</div><div id="vol" class="text-2xl font-mono">-</div></div></div><div class="bg-[#141414] p-4 rounded-lg mb-4"><div class="text-xs text-[#8B919C] uppercase">Signal</div><div id="sig" class="text-xl font-mono text-[#00D4AA]">-</div></div><div class="bg-[#1C1C1C] border border-[#FFB800]/30 p-4 rounded-lg"><div class="text-xs text-[#FFB800] uppercase font-bold mb-2">Risks</div><div id="risk" class="text-sm">-</div></div></div><script>function loadData(){const ticker=document.getElementById("ticker").value.toUpperCase(); document.getElementById("sym").innerText="Loading..."; fetch("/v1/instruments/"+ticker+"/insights").then(r=>r.json()).then(d=>{document.getElementById("sym").innerText=d.symbol; document.getElementById("rsi").innerText=d.momentum.rsi_14; document.getElementById("vol").innerText=(d.volatility.realized_20d*100).toFixed(1)+"%"; document.getElementById("sig").innerText=d.signal.direction.toUpperCase()+" ("+Math.round(d.signal.probability*100)+"%)"; document.getElementById("risk").innerHTML=d.risks.join("<br>");});} loadData();</script></body></html>`;
-  res.send(html);
+
+app.post("/api/generate-path", async (req, res) => {
+  const { skills } = req.body;
+  
+  try {
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${process.env.GROQ_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: "llama3-8b-8192",
+        messages: [
+          { role: "system", content: "You are an elite career counselor for youth. Based on the user's skills, invent a fictional enterprise sponsor (like 'TechNova') and output a 3-step career roadmap. Return ONLY raw JSON with this structure: { 'sponsorName': 'Name', 'sponsorReason': 'Why they want you', 'salary': '$XX,000', 'steps': [{'title': 'Step 1', 'desc': 'Description'}, {'title': 'Step 2', 'desc': 'Description'}, {'title': 'Step 3', 'desc': 'Description'}] }. Do not include markdown formatting or backticks." },
+          { role: "user", content: `My skills are: ${skills.join(", ")}` }
+        ]
+      })
+    });
+    
+    const data = await response.json();
+    const aiText = data.choices[0].message.content;
+    res.json(JSON.parse(aiText));
+  } catch (error) {
+    res.status(500).json({ error: "AI failed to generate path." });
+  }
 });
-app.listen(process.env.PORT || 8001, '0.0.0.0', () => { console.log("Server running"); });
+
+app.listen(process.env.PORT || 8001, '0.0.0.0', () => { 
+  console.log("Server running"); 
+});
