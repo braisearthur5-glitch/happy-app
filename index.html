@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Elevate | AI Career Path</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #050505; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-image: radial-gradient(circle at 50% 0%, #1a1a2e 0%, #050505 70%); }
+        .glow-text { text-shadow: 0 0 20px rgba(79, 140, 255, 0.5); }
+        .card { background: rgba(20, 20, 20, 0.8); border: 1px solid #2A2A2A; backdrop-filter: blur(10px); }
+        .skill-badge { transition: all 0.2s; cursor: pointer; }
+        .skill-badge.active { background-color: #4F8CFF; color: white; border-color: #4F8CFF; box-shadow: 0 0 15px rgba(79, 140, 255, 0.4); }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body class="p-4 pb-20 flex flex-col items-center min-h-screen">
+    
+    <div class="w-full max-w-md mt-6">
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-600 glow-text">ELEVATE</h1>
+            <p class="text-sm text-gray-400 mt-2">AI-Powered Enterprise Sponsorship</p>
+        </div>
+
+        <div id="input-section" class="card p-6 rounded-2xl mb-4">
+            <h2 class="text-lg font-bold mb-4 flex items-center gap-2">
+                <span class="bg-blue-600 text-xs px-2 py-1 rounded">1</span> Select your current skills
+            </h2>
+            <div class="flex flex-wrap gap-2" id="skill-container">
+                <div class="skill-badge border border-gray-600 rounded-full px-4 py-2 text-sm" onclick="toggleSkill(this)">HTML & CSS</div>
+                <div class="skill-badge border border-gray-600 rounded-full px-4 py-2 text-sm" onclick="toggleSkill(this)">JavaScript</div>
+                <div class="skill-badge border border-gray-600 rounded-full px-4 py-2 text-sm" onclick="toggleSkill(this)">Public Speaking</div>
+                <div class="skill-badge border border-gray-600 rounded-full px-4 py-2 text-sm" onclick="toggleSkill(this)">Data Analysis</div>
+                <div class="skill-badge border border-gray-600 rounded-full px-4 py-2 text-sm" onclick="toggleSkill(this)">Graphic Design</div>
+                <div class="skill-badge border border-gray-600 rounded-full px-4 py-2 text-sm" onclick="toggleSkill(this)">Problem Solving</div>
+            </div>
+        </div>
+
+        <button id="generate-btn" onclick="generatePath()" class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold text-lg py-4 rounded-xl shadow-lg active:scale-95 transition-all mb-6">
+            Generate AI Career Path
+        </button>
+
+        <div id="results" class="hidden">
+            <div class="card p-6 rounded-2xl mb-4 border-l-4 border-l-blue-500">
+                <h3 class="text-xs text-gray-400 uppercase tracking-wider mb-1">Enterprise Sponsor Match</h3>
+                <h2 id="sponsor-name" class="text-2xl font-bold text-white mb-2">...</h2>
+                <p id="sponsor-reason" class="text-sm text-gray-400 mb-4">...</p>
+                <div class="flex gap-2">
+                    <span id="salary" class="bg-blue-900/50 text-blue-300 text-xs px-2 py-1 rounded">...</span>
+                    <span class="bg-green-900/50 text-green-300 text-xs px-2 py-1 rounded">100% Funded</span>
+                </div>
+            </div>
+
+            <div class="card p-6 rounded-2xl">
+                <h3 class="text-xs text-gray-400 uppercase tracking-wider mb-3">Your Personalized AI Roadmap</h3>
+                <div id="roadmap-steps" class="space-y-4"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let selectedSkills = [];
+
+        window.onload = () => {
+            const savedPath = localStorage.getItem('elevatePath');
+            if (savedPath) { renderResults(JSON.parse(savedPath)); }
+        };
+
+        function toggleSkill(element) {
+            element.classList.toggle('active');
+            const skill = element.innerText;
+            if (element.classList.contains('active')) {
+                selectedSkills.push(skill);
+            } else {
+                selectedSkills = selectedSkills.filter(s => s !== skill);
+            }
+        }
+
+        async function generatePath() {
+            if (selectedSkills.length === 0) return alert("Please select at least one skill.");
+
+            const btn = document.getElementById('generate-btn');
+            btn.innerText = "AI Analyzing Skills...";
+            btn.classList.add("opacity-50");
+            document.getElementById('results').classList.add('hidden');
+
+            try {
+                const response = await fetch('/api/generate-path', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ skills: selectedSkills })
+                });
+                const data = await response.json();
+                
+                localStorage.setItem('elevatePath', JSON.stringify(data));
+                renderResults(data);
+            } catch (error) {
+                alert("AI had trouble thinking. Make sure your GROQ_API_KEY is set.");
+            } finally {
+                btn.innerText = "Generate AI Career Path";
+                btn.classList.remove("opacity-50");
+            }
+        }
+
+        function renderResults(data) {
+            document.getElementById('sponsor-name').innerText = data.sponsorName;
+            document.getElementById('sponsor-reason').innerText = data.sponsorReason;
+            document.getElementById('salary').innerText = data.salary + " / yr";
+            
+            const stepsContainer = document.getElementById('roadmap-steps');
+            stepsContainer.innerHTML = '';
+            
+            data.steps.forEach((step, index) => {
+                stepsContainer.innerHTML += `
+                    <div class="flex gap-3">
+                        <div class="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center font-bold text-sm shrink-0">${index + 1}</div>
+                        <div>
+                            <h4 class="font-bold text-white text-sm">${step.title}</h4>
+                            <p class="text-xs text-gray-400">${step.desc}</p>
+                        </div>
+                    </div>
+                `;
+            });
+
+            document.getElementById('results').classList.remove('hidden');
+            document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
+        }
+    </script>
+</body>
+</html> Add Elevate Frontend
